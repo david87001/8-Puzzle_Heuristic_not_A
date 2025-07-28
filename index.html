@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>Canvas 操作介面</title>
+  <style>
+    body {
+      background: #f0f4f8;
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px;
+    }
+
+    #myCanvas {
+      border: 3px solid #555;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      background-color: white;
+      width: 400px;
+      height: 400px;
+    }
+
+    .button-container {
+      margin-top: 30px;
+      display: flex;
+      gap: 20px;
+    }
+
+    button {
+      width: 100px;
+      height: 100px;
+      background: linear-gradient(135deg, #4CAF50, #81C784);
+      border: none;
+      border-radius: 15px;
+      color: white;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    button:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+    }
+
+    button:active {
+      transform: translateY(2px);
+      box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.2);
+    }
+  </style>
+</head>
+<body>
+  <canvas id="myCanvas"></canvas>
+  <div class="button-container">
+    <button onclick="Shuffle()">Shuffle</button>
+    <button onclick="calculate_all()">calculate</button>
+    <button onclick="auto_action_button()">GO!</button>
+  </div>
+
+  <script>
+    //這一個可以自己設置
+    var world_n = 3;
+    var deep_n = 13;//16沒有比15好，目前13效果最好
+    var numbers = [];
+    var numbers_answer = [];
+    var numbers_store = [];
+    var ASF_auto = [[], [], 10000];
+    for (var first_i = 0; first_i < (world_n * world_n); first_i++) {
+      numbers.push(((first_i + 1) % (world_n * world_n)));
+      numbers_answer.push(((first_i + 1) % (world_n * world_n)));
+
+    }
+    console.log(numbers);
+
+    var action_array = [];//實際去走走看;
+    var isAction = false;
+
+
+    var canvas = document.getElementById("myCanvas");
+    var ctx = canvas.getContext("2d");
+    canvas.height = 600;
+    canvas.width = 600;
+
+    //鍵盤事件
+    var body = document.body;
+    function goRocket(e) {
+      //console.log(e.keyCode); //查鍵盤代碼
+      switch (e.keyCode) {
+        case 83:
+          Shuffle();
+          break;
+        case 38:
+          console.log(up());
+          break;
+        case 40:
+          console.log(down());
+          break;
+        case 37:
+          console.log(left());
+          break;
+        case 39:
+          console.log(right());
+          break;
+      }
+    }
+    body.addEventListener('keydown', goRocket, false) //偵測按下按鍵的行為
+
+    function draw_basis() {
+      for (var draw_basis_i = 0; draw_basis_i < (world_n - 1); draw_basis_i++) {
+        //在繪製任何東西之前，我們都要來個開始，像全天下所有的故事一樣
+        ctx.beginPath();
+        //我們用moveTo(x,y)來指定線的起點座標
+        ctx.moveTo(0, (600 / world_n) * (draw_basis_i + 1))
+        //之後使用lineTo(x,y)來指定與前一個座標相連的點
+        ctx.lineTo(600, (600 / world_n) * (draw_basis_i + 1))
+        //用stroke()來繪製相連點的線
+        ctx.stroke()
+      }
+      for (var draw_basis_i = 0; draw_basis_i < (world_n - 1); draw_basis_i++) {
+        //在繪製任何東西之前，我們都要來個開始，像全天下所有的故事一樣
+        ctx.beginPath();
+        //我們用moveTo(x,y)來指定線的起點座標
+        ctx.moveTo((600 / world_n) * (draw_basis_i + 1), 0)
+        //之後使用lineTo(x,y)來指定與前一個座標相連的點
+        ctx.lineTo((600 / world_n) * (draw_basis_i + 1), 600)
+        //用stroke()來繪製相連點的線
+        ctx.stroke()
+      }
+    }
+    function draw_number() {
+      ctx.font = "50px Arial";
+      for (var draw_number_i = 0; draw_number_i < (world_n * world_n); draw_number_i++) {
+        if (draw_number_i == numbers.indexOf(0)) {
+          ctx.beginPath();
+          ctx.arc((draw_number_i % world_n) * (600 / world_n) + (600 / world_n / 2), ((draw_number_i - (draw_number_i % world_n)) / world_n) * (600 / world_n) + (600 / world_n / 2), (600 / world_n / 2), 0, 2 * Math.PI);
+          ctx.stroke();
+          continue;
+        }
+        ctx.fillText(numbers[draw_number_i], (draw_number_i % world_n) * (600 / world_n), ((draw_number_i - (draw_number_i % world_n)) / world_n) * (600 / world_n) + 50);
+      }
+    }
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      draw_basis();
+      draw_number();
+    }
+
+    //隨機數
+    function getRandomInt(max) {
+      return Math.floor(Math.random() * max);
+    }
+    //洗牌
+    function Shuffle() {
+      let Shuffle_aa = 0;
+      for (var Shuffle_i = 0; Shuffle_i < 10000; Shuffle_i++) {
+        Shuffle_aa = getRandomInt(4);
+        if (Shuffle_aa == 0) {
+          up();
+        }
+        if (Shuffle_aa == 1) {
+          down();
+        }
+        if (Shuffle_aa == 2) {
+          left();
+        }
+        if (Shuffle_aa == 3) {
+          right();
+        }
+      }
+    }
+    //手動計算
+
+    //
+    function calculate_all() {
+      let ASF_auto_in = [];
+      ASF_auto = [[], [], 500];
+      ASF_auto[1] = ASF_auto[1].concat(numbers);
+      for (let auto_i = 0; auto_i < 10; auto_i++) {
+        ASF_auto_in = find_best_action(ASF_auto[1]);
+        ASF_auto[0] = ASF_auto[0].concat(ASF_auto_in[0]);
+        ASF_auto[1] = [];
+        ASF_auto[1] = ASF_auto[1].concat(ASF_auto_in[1]);
+        ASF_auto[2] = ASF_auto_in[2];
+        if (ASF_auto[2] == 0) {
+          break;
+        }
+      }
+      action_array = [];
+      action_array = action_array.concat(ASF_auto[0]);
+      console.log(ASF_auto);
+      //auto_action_button();
+    }
+
+
+    //讀取action_array裡面的東西，實際去走走看
+    function auto_action() {
+      //沒有啟動
+      if (!isAction) {
+        return 0;
+      }
+      if (action_array.length == 0) {
+        isAction = false;
+        console.log(action_array);
+        return 0;
+      } else {
+        number_to_walk(action_array[0]);
+        action_array.shift();
+        console.log(action_array);
+      }
+    }
+
+    //呈上，auto按鈕
+    function auto_action_button() {
+      isAction = !isAction;
+    }
+
+
+    function find_best_action(state_firse) {
+      let state_all = [];
+      let action_next = 5;
+      let action_next_array = [];
+      let action_skip = [];
+
+      let ASF = [[], [], 10000];//[action、state、f]
+      state_all.push([5, state_firse, calculate_h(state_firse)]);
+
+
+      //看要計算幾層
+      for (let deep_n_i = 0; deep_n_i < deep_n; deep_n_i++) {
+        //console.log("目前到第", deep_n_i , "層");
+        //從現有的state取出一個state
+        let state_amount = state_all.length;
+        for (let all_S_i = 0; all_S_i < state_amount; all_S_i++) {
+          //console.log("遇到了", state_all[all_S_i]);
+          action_skip = [];//要跳過的步數
+          //先走四步，看看會走到什麼地方，存在「這次會走到的state」變量
+          for (let next_action_i = 0; next_action_i < 4; next_action_i++) {
+            let state_try = [];
+            [action_next, state_try] = action_test(state_all[all_S_i][1], next_action_i);
+
+            //如果這一步走下去跟之前一樣，把這一步加入到skip名單內，讓下一階段跳過
+            if (state_check(state_try, state_all)) {
+              action_skip.push(next_action_i);
+            }
+          }
+
+          //能行動的步數，f值存起來，還有該怎麼到達的action順序
+          for (let next_action_i = 0; next_action_i < 4; next_action_i++) {
+            //看看有沒有在skip名單內，有就跳過
+            if (action_skip.includes(next_action_i)) {
+              continue;
+            }
+
+            action_next = 5;
+
+            //初始化「這次的行動」為停止
+            ASF = [[], [], 10000];//[action、state、f]
+
+
+            let state_try = [];
+            [action_next, state_try] = action_test(state_all[all_S_i][1], next_action_i);
+
+            //比對有沒有跟之前的一樣，如果跟之前一樣，不要動並且跳過換下一個動作
+            //更新[action、state、f]變量
+            ASF[0] = ASF[0].concat(state_all[all_S_i][0]);
+            ASF[0].push(action_next);
+            ASF[1] = ASF[1].concat(state_try);
+            //ASF[2] = (deep_n_i) + calculate_h(state_try);
+            ASF[2] = calculate_h(state_try);
+
+            //console.log(ASF[0]);
+
+            //最後儲存當前位置
+            state_all.push(ASF);
+            //console.log("state_all", state_all);
+          }
+        }
+      }
+      //得出結果，按照「action、state、f」變量的action真實行動
+      //找到f值最低的
+      let f_smallist = 10000;
+      let f_smallist_i = 0;
+      for (let all_S_i = 0; all_S_i < state_all.length; all_S_i++) {
+        if (state_all[all_S_i][2] < f_smallist) {
+          f_smallist = state_all[all_S_i][2];
+          f_smallist_i = all_S_i;
+        }
+        if (state_all[all_S_i][2] == f_smallist) {
+          if (getRandomInt(2)) {
+            f_smallist = state_all[all_S_i][2];
+            f_smallist_i = all_S_i;
+          }
+
+        }
+      }
+      console.log("總共算了：" + state_all.length + "個")
+      console.log("最小的是：", f_smallist_i);
+      console.log(state_all[f_smallist_i]);
+      action_next_array = action_next_array.concat(state_all[f_smallist_i][0]);
+      //return action_next_array;
+      return state_all[f_smallist_i];
+    }
+
+    //交換這個state的格子
+    function change(state, change_i, change_j) {
+      let state_change = [];
+      for (let i = 0; i < state.length; i++) {
+        state_change.push(state[i])
+      }
+      [state_change[change_i], state_change[change_j]] = [state_change[change_j], state_change[change_i]];
+      return state_change;
+    }
+
+    //真實移動
+    function up() {
+      if (numbers.indexOf(0) >= world_n) {
+        numbers = change(numbers, numbers.indexOf(0), numbers.indexOf(0) - world_n);
+        return 1;
+      }
+      return 0;
+    }
+    function down() {
+      if (numbers.indexOf(0) < (world_n * world_n) - world_n) {
+        numbers = change(numbers, numbers.indexOf(0), numbers.indexOf(0) + world_n);
+        return 1;
+      }
+      return 0;
+    }
+    function left() {
+      if (numbers.indexOf(0) % world_n != 0) {
+        numbers = change(numbers, numbers.indexOf(0), numbers.indexOf(0) - 1);
+        return 1;
+      }
+      return 0;
+    }
+    function right() {
+      if (numbers.indexOf(0) % world_n != (world_n - 1)) {
+        numbers = change(numbers, numbers.indexOf(0), numbers.indexOf(0) + 1);
+        return 1;
+      }
+      return 0;
+    }
+
+
+    //比較兩個矩陣
+    function arraysEqual(arraysEqual_a, arraysEqual_b) {
+      if (arraysEqual_a === arraysEqual_b) {
+        //console.log("true");
+        return true;
+      }
+      if (arraysEqual_a == null || arraysEqual_b == null) {
+        //console.log("false");
+        return false;
+      }
+      if (arraysEqual_a.length !== arraysEqual_b.length) {
+        //console.log("false");
+        return false;
+      }
+
+      for (var i = 0; i < arraysEqual_a.length; ++i) {
+        if (arraysEqual_a[i] !== arraysEqual_b[i]) {
+          //console.log("false");
+          return false;
+        }
+      }
+      return true;
+    }
+
+    //查看這佪state在經過某個action會去哪裡
+    function action_test(state, action) {
+      let state_next = [];
+
+      for (let i = 0; i < state.length; i++) {
+        state_next.push(state[i])
+      }
+
+      if (action == 0) {
+        if (state.indexOf(0) >= world_n) {
+          state_next = change(state, state.indexOf(0), state.indexOf(0) - world_n);
+        }
+      }
+      if (action == 1) {
+        if (state.indexOf(0) < (world_n * world_n) - world_n) {
+          state_next = change(state, state.indexOf(0), state.indexOf(0) + world_n);
+        }
+      }
+      if (action == 2) {
+        if (state.indexOf(0) % world_n != 0) {
+          state_next = change(state, state.indexOf(0), state.indexOf(0) - 1);
+        }
+      }
+      if (action == 3) {
+        if (state.indexOf(0) % world_n != (world_n - 1)) {
+          state_next = change(state, state.indexOf(0), state.indexOf(0) + 1);
+        }
+      }
+
+      return [action, state_next];
+    }
+
+
+    //真的去依照數字走路
+    function number_to_walk(aa) {
+      if (aa == 0) {
+        up();
+      }
+      if (aa == 1) {
+        down();
+      }
+      if (aa == 2) {
+        left();
+      }
+      if (aa == 3) {
+        right();
+      }
+    }
+
+    //算h值
+    function calculate_h(state) {
+      if (state.length != numbers.length) {
+        return 10000;
+      }
+      let h = 0;
+      for (let i = 0; i < numbers.length; i++) {
+        if (state[i] != numbers_answer[i]) {
+          h++;
+        }
+
+      }
+      return h;
+    }
+
+    //檢查state有沒有存在於array裡面
+    function state_check(state, state_array) {
+      for (let i = 0; i < state_array.length; i++) {
+        let aa = 0;
+        for (let j = 0; j < state_array[i][1].length; j++) {
+          if (state[j] == state_array[i][1][j]) {
+            aa++;
+          }
+        }
+        if (aa == state_array[i][1].length) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    //action轉換成文字
+    function action_to_text(aa) {
+      if (aa == 0) {
+        return "up";
+      }
+      if (aa == 1) {
+        return "down";
+      }
+      if (aa == 2) {
+        return "left";
+      }
+      if (aa == 3) {
+        return "right";
+      }
+      if (aa == 5) {
+        return "結束";
+      }
+    }
+
+    setInterval(draw, 10);
+    setInterval(auto_action, 200);
+  </script>
+    
+</body>
+</html>
